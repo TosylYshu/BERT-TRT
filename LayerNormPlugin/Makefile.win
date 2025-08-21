@@ -1,0 +1,29 @@
+CUDA_PATH       = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
+TRT_PATH        = D:\Software\TensorRT-10.9.0.34
+NVCC            = $(CUDA_PATH)\bin\nvcc
+GENCODE         = -gencode=arch=compute_120,code=sm_120 \
+				  -gencode arch=compute_120,code=compute_120
+CUFLAG          = -w -std=c++17 -O3 -UDEBUG $(GENCODE)
+CPPFLAG         = -w -std=c++17 -O3 -use_fast_math
+SOFLAG          = $(CUFLAG) -shared
+INCLUDE         = -I. -I$(CUDA_PATH)\include -I$(TRT_PATH)\include
+LDFLAG          = -L$(CUDA_PATH)\lib64 -lcudart -lcublas -lcublasLt -L$(TRT_PATH)\lib -lnvinfer_10
+
+SRC_CU          = LayerNormPlugin.cu
+
+all: LayerNorm.dll
+
+LayerNormPlugin.obj: LayerNormPlugin.cu
+	$(NVCC) $(CUFLAG) $(INCLUDE) -o $@ -c LayerNormPlugin.cu
+
+LayerNorm.dll: $(SRC_CU:.cu=.obj)
+	$(NVCC) $(SOFLAG) $(LDFLAG) -o $@ LayerNormPlugin.obj
+
+.PHONY: clean
+clean:
+	del LayerNormPlugin.obj
+	del LayerNorm.dll
+
+.PHONY: test
+test:
+	python testLayerNormPlugin.py

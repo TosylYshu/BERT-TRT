@@ -1,0 +1,11 @@
+build
+build/*
+__pycache__
+out
+*.so
+*.o
+log.txt
+.vscode/
+*.obj
+*.dll
+bert-base-uncased/*

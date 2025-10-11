@@ -12,7 +12,7 @@ import pycuda.autoinit
 
 # TensorRT
 import tensorrt as trt
-# from calibrator import BertCalibrator as BertCalibrator
+from calibrator import BertCalibrator as BertCalibrator
 from trt_helper import *
 
 import torch
@@ -316,13 +316,14 @@ def build_engine(workspace_size, config, weights_dict, vocab_file, calibrationCa
         if config.use_int8:
             builder_config.set_flag(trt.BuilderFlag.INT8)
 
-            # calibrator = BertCalibrator("calibrator_data.txt", "bert-base-uncased", calibrationCacheFile, 1, max_seq_length, 1000)
-            # builder_config.set_quantization_flag(trt.QuantizationFlag.CALIBRATE_BEFORE_FUSION)
-            # builder_config.int8_calibrator = calibrator
+            calibrator = BertCalibrator("calibrator_data.txt", "bert-base-uncased", calibrationCacheFile, 1, max_seq_length, 1000)
+            builder_config.set_quantization_flag(trt.QuantizationFlag.CALIBRATE_BEFORE_FUSION)
+            builder_config.int8_calibrator = calibrator
 
         if config.use_strict:
-            builder_config.set_flag(trt.BuilderFlag.STRICT_TYPES)
-        # builder_config.set_flag(trt.BuilderFlag.STRICT_TYPES)
+            builder_config.set_flag(trt.BuilderFlag.PREFER_PRECISION_CONSTRAINTS)
+            builder_config.set_flag(trt.BuilderFlag.DIRECT_IO)
+            builder_config.set_flag(trt.BuilderFlag.REJECT_EMPTY_ALGORITHMS)
 
         # only use the largest sequence when in calibration mode
         if config.is_calib_mode:
@@ -353,8 +354,8 @@ def build_engine(workspace_size, config, weights_dict, vocab_file, calibrationCa
         engine = builder.build_serialized_network(network, builder_config)
         build_time_elapsed = (time.time() - build_start_time)
         TRT_LOGGER.log(TRT_LOGGER.INFO, "build engine in {:.3f} Sec".format(build_time_elapsed))
-        # if config.use_int8:
-        #     calibrator.free()
+        if config.use_int8:
+            calibrator.free()
         return engine
 
 def generate_calibration_cache(sequence_lengths, workspace_size, config, weights_dict, squad_json, vocab_file, calibrationCacheFile, calib_num):

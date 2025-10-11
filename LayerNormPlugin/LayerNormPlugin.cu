@@ -15,7 +15,6 @@
  */
  
 #include "LayerNormPlugin.h"
-#include <cub/cub.cuh>
 #include "cublas_v2.h"
 
 using namespace nvinfer1;
@@ -139,7 +138,7 @@ __global__ void layerNormKernelCUBV1(T* pInput, float* pGamma, float* pBeta, T* 
         var_shared = var / T(N_EMBEDDING);
     __syncthreads();
 
-    pOutput[index] = (moment) * (T)rsqrtf(var_shared + 6e-6) * _b + _a;
+    pOutput[index] = (moment) * (T)rsqrtf(var_shared + epsilon<T>()) * _b + _a;
 }
 
 struct Float2Sum
@@ -190,15 +189,24 @@ __global__ void layerNormKernelCUBV2(const T* input, const T* gamma, const T* be
     copy<sizeof(T) * VPT>(localX, &output[idx]);
 }
 
+template __global__ void layerNormKernelCUBV2<float, 192, 4>(const float*, const float*, const float*, float*);
+template __global__ void layerNormKernelCUBV2<half, 96, 8>(const half*, const half*, const half*, half*);
+
 int32_t LayerNormPlugin::enqueue(const PluginTensorDesc* inputDesc, const PluginTensorDesc* outputDesc, const void* const* inputs, void* const* outputs, void* workspace, cudaStream_t stream) noexcept
 {
     const int nBlock = inputDesc[0].dims.d[0] * inputDesc[0].dims.d[1];
 
-    // layerNormKernelBasic <<<nBlock, N_EMBEDDING / 2, 0, stream>>>((float *)inputs[0], (float *)inputs[1], (float *)inputs[2], (float *)outputs[0]);
-    // (layerNormKernelCUBV1<float>)<<<nBlock, N_EMBEDDING, 0, stream>>>((float *)inputs[0], (float *)inputs[1], (float *)inputs[2], (float *)outputs[0]);
-    constexpr int VPT = 16 / sizeof(float);
-    constexpr int TPB = N_EMBEDDING / VPT;
-    (layerNormKernelCUBV2<float, TPB, VPT>)<<<nBlock, TPB, 0, stream>>>((float *)inputs[0], (float *)inputs[1], (float *)inputs[2], (float *)outputs[0]);
+    if (inputDesc[0].type == DataType::kFLOAT) {
+        // layerNormKernelBasic <<<nBlock, N_EMBEDDING / 2, 0, stream>>>((float *)inputs[0], (float *)inputs[1], (float *)inputs[2], (float *)outputs[0]);
+        // (layerNormKernelCUBV1<float>)<<<nBlock, N_EMBEDDING, 0, stream>>>((float *)inputs[0], (float *)inputs[1], (float *)inputs[2], (float *)outputs[0]);
+        constexpr int VPT = 16 / sizeof(float);
+        constexpr int TPB = N_EMBEDDING / VPT;
+        (layerNormKernelCUBV2<float, TPB, VPT>)<<<nBlock, TPB, 0, stream>>>((float *)inputs[0], (float *)inputs[1], (float *)inputs[2], (float *)outputs[0]);
+    } else {
+        constexpr int VPT = 16 / sizeof(half);
+        constexpr int TPB = N_EMBEDDING / VPT;
+        (layerNormKernelCUBV2<half, TPB, VPT>)<<<nBlock, TPB, 0, stream>>>((half *)inputs[0], (half *)inputs[1], (half *)inputs[2], (half *)outputs[0]);
+    }
     return 0;
 }
 

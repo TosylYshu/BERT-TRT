@@ -119,7 +119,7 @@ class TrtNetworkHelper():
 
         return gelu_layer.get_output(0)
 
-    def addLayerNorm(self, x, gamma, beta, layer_name=None, precision=None):
+    def addLayerNorm(self, x, gamma, beta, use_fp16, layer_name=None, precision=None):
         plg_creator = self.plugin_registry.get_plugin_creator("LayerNorm", "1", "")
         if not plg_creator:
             return RuntimeError("Could not find LayerNorm")
@@ -134,6 +134,8 @@ class TrtNetworkHelper():
         beta = self.network.add_constant(beta.shape, beta).get_output(0)
 
         trt_layer = self.network.add_plugin_v2([x, gamma, beta], plugin)
+
+        trt_layer.get_output(0).dtype = [trt.float32,trt.float16][use_fp16]
 
         if layer_name is None:
             layer_name = "nn.LayerNorm"

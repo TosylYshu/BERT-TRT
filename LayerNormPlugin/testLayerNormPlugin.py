@@ -22,13 +22,13 @@ import tensorrt as trt
 import platform
 
 if platform.system() == 'Windows':
-    soFilePath  = './LayerNorm.dll'
+    soFilePath  = './LayerNormPlugin/LayerNormPlugin.dll'
 else:
     soFilePath  = './LayerNorm.so'
 nBS             = 4
 nSL             = 16
 nEmbedding      = 768
-epsilon         = 6e-6
+epsilon         = 1e-6
 
 np.random.seed(97)
 
@@ -70,7 +70,7 @@ def getLayerNormPlugin():
     return None
 
 def run():
-    logger = trt.Logger(trt.Logger.ERROR)
+    logger = trt.Logger(trt.Logger.VERBOSE)
     trt.init_libnvinfer_plugins(logger, '')
     ctypes.cdll.LoadLibrary(soFilePath)
 
@@ -78,7 +78,11 @@ def run():
     network         = builder.create_network(1<<0)
     config          = builder.create_builder_config()
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 6 << 30)
-    config.flags    = 0
+    config.set_flag(trt.BuilderFlag.FP16)
+    config.set_flag(trt.BuilderFlag.PREFER_PRECISION_CONSTRAINTS)
+    config.set_flag(trt.BuilderFlag.DIRECT_IO)
+    config.set_flag(trt.BuilderFlag.REJECT_EMPTY_ALGORITHMS)
+    # config.flags    = 0
 
     inputTensorList = []
     inputTensorList.append( network.add_input('inputT', trt.float32, [-1,-1,nEmbedding]) )
@@ -92,6 +96,7 @@ def run():
     pluginLayer = network.add_plugin_v2(inputTensorList, getLayerNormPlugin())
 
     network.mark_output(pluginLayer.get_output(0))
+    pluginLayer.get_output(0).dtype = [trt.float32,trt.float16][1]
 
     engineString = builder.build_serialized_network(network, config)
     engine = trt.Runtime(logger).deserialize_cuda_engine(engineString)

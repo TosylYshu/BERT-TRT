@@ -14,9 +14,25 @@
  * limitations under the License.
  */
  
- #include <vector>
- #include <string>
- #include <NvInfer.h>
+#include <vector>
+#include <string>
+#include <NvInfer.h>
+#include <cub/cub.cuh>
+
+template <typename T>
+__device__ T epsilon();
+
+template <>
+__device__ float epsilon<float>()
+{
+    return (float)6.0e-12;
+}
+
+template <>
+__device__ half epsilon<half>()
+{
+    return (half)6.0e-6;
+}
  
  // +------- Debug wrapper --------------------------------------------------------------------------
  #if DEBUG
@@ -101,11 +117,9 @@
          switch(pos)
          {
          case 0:
-             res = (inOut[pos].type == DataType::kFLOAT); break;
+             res = (inOut[pos].type == DataType::kFLOAT || inOut[pos].type == DataType::kHALF); break;
          case 1:
-             res = (inOut[pos].type == DataType::kFLOAT); break;
          case 2:
-             res = (inOut[pos].type == DataType::kFLOAT); break;
          case 3:
              res = inOut[pos].type == inOut[0].type; break;
          default:// should NOT be here
@@ -117,7 +131,7 @@
      DataType getOutputDataType(int outputIndex, const DataType* inputTypes, int nbInputs) const noexcept override
      {
          WHERE_AM_I();
-         return DataType::kFLOAT;
+         return inputTypes[0];
      }
  
      void configurePlugin(const DynamicPluginTensorDesc* in, int32_t nbInputs,const DynamicPluginTensorDesc* out, int32_t nbOutputs) noexcept override

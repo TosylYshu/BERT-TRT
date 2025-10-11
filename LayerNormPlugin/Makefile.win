@@ -9,21 +9,21 @@ SOFLAG          = $(CUFLAG) -shared
 INCLUDE         = -I. -I$(CUDA_PATH)\include -I$(TRT_PATH)\include
 LDFLAG          = -L$(CUDA_PATH)\lib64 -lcudart -lcublas -lcublasLt -L$(TRT_PATH)\lib -lnvinfer_10
 
-SRC_CU          = LayerNormPlugin.cu
+SRC_CU          = LayerNormPlugin\LayerNormPlugin.cu
 
-all: LayerNorm.dll
+all: LayerNormPlugin\LayerNormPlugin.dll
 
-LayerNormPlugin.obj: LayerNormPlugin.cu
-	$(NVCC) $(CUFLAG) $(INCLUDE) -o $@ -c LayerNormPlugin.cu
+LayerNormPlugin\LayerNormPlugin.obj: LayerNormPlugin\LayerNormPlugin.cu
+	$(NVCC) $(CUFLAG) $(INCLUDE) -o $@ -c LayerNormPlugin\LayerNormPlugin.cu
 
-LayerNorm.dll: $(SRC_CU:.cu=.obj)
-	$(NVCC) $(SOFLAG) $(LDFLAG) -o $@ LayerNormPlugin.obj
+LayerNormPlugin\LayerNormPlugin.dll: $(SRC_CU:.cu=.obj)
+	$(NVCC) $(SOFLAG) $(LDFLAG) -o $@ LayerNormPlugin\LayerNormPlugin.obj
 
 .PHONY: clean
 clean:
-	del LayerNormPlugin.obj
-	del LayerNorm.dll
+	del LayerNormPlugin\LayerNormPlugin.obj
+	del LayerNormPlugin\LayerNormPlugin.dll
 
 .PHONY: test
 test:
-	python testLayerNormPlugin.py
+	python LayerNormPlugin\testLayerNormPlugin.py

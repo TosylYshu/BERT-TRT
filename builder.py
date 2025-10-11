@@ -38,7 +38,7 @@ if not handle:
     raise RuntimeError("Could not load plugin library. Is `libnvinfer_plugin.so` on your LD_LIBRARY_PATH?")
 
 if platform.system() == 'Windows':
-    handle = ctypes.CDLL(".\LayerNormPlugin\LayerNorm.dll", mode=ctypes.RTLD_GLOBAL)
+    handle = ctypes.CDLL(".\LayerNormPlugin\LayerNormPlugin.dll", mode=ctypes.RTLD_GLOBAL)
 else:
     handle = ctypes.CDLL("LayerNorm.so", mode=ctypes.RTLD_GLOBAL)
 if not handle:
@@ -136,7 +136,7 @@ def self_output_layer(network_helper, prefix, config, weights_dict, hidden_state
 
     gamma = weights_dict[prefix + "attention_output_layernorm_gamma"]
     beta = weights_dict[prefix + "attention_output_layernorm_beta"]
-    out = network_helper.addLayerNorm(out, gamma, beta)
+    out = network_helper.addLayerNorm(out, gamma, beta, config.use_fp16)
 
     return out
 
@@ -172,7 +172,7 @@ def transformer_layer(network_helper, prefix, config, weights_dict, input_tensor
 
     gamma = weights_dict[prefix + "output_layernorm_gamma"]
     beta = weights_dict[prefix + "output_layernorm_beta"]
-    layer_output = network_helper.addLayerNorm(layer_output, gamma, beta)
+    layer_output = network_helper.addLayerNorm(layer_output, gamma, beta, config.use_fp16)
 
     return layer_output
 
@@ -191,7 +191,7 @@ def transformer_output_layer(network_helper, config, weights_dict, input_tensor)
 
     gamma = weights_dict["cls_predictions_transform_layernorm_gamma"]
     beta = weights_dict["cls_predictions_transform_layernorm_beta"]
-    layer_output = network_helper.addLayerNorm(dense_output, gamma, beta)
+    layer_output = network_helper.addLayerNorm(dense_output, gamma, beta, config.use_fp16)
 
     # BertOutput
     output_w = weights_dict["embeddings_word_embeddings"]
@@ -300,7 +300,7 @@ def emb_layernorm(network_helper, config, weights_dict, builder_config, sequence
 
     gamma = weights_dict["embeddings_layernorm_gamma"]
     beta = weights_dict["embeddings_layernorm_beta"]
-    out = network_helper.addLayerNorm(embeddings, gamma, beta)
+    out = network_helper.addLayerNorm(embeddings, gamma, beta, config.use_fp16)
 
     return out
 
